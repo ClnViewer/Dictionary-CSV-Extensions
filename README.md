@@ -36,20 +36,17 @@ The extension for the Dictionary type allows you to work directly with CSV files
 
         // при инициализации указывается тип ключа
         CvsDictionary<String> dic = new CvsDictionary<String>();
+        // при использовании метода `.Load<Type>()` - Dictionary всегда очищается от предыдущих данных
         // по умолчанию, без параметров, будет попытка загрузить файл с именем класса и расширением `.csv`
         dic.Load<TestData>();
         // или с указанием файла
         dic.Load<TestData>("TestData.csv");
-        // перегрузка метода .Add() с одним параметром, классом данных,
+        // перегрузка метода `.Add()` с одним параметром, классом данных,
         // ключь выбирается автоматически
-        
-            [CSVClassMapAttribute(nameof(Id), true, 0)]
-            public String Id { get; set; }
-            [CSVClassMapAttribute(nameof(Name), false, 1)]
-            public String Name { get; set; }
-            [CSVClassMapAttribute(nameof(Age), false, 2)]
-            public int Age { get; set; }
-            [CSVClassMapAttribute(nameof(HappytDay), false, 3)]
-            public DateTime HappytDay { get; set; }
-        }
+        dic.Add(new TestData() {
+           Id = "abc" ,
+           Name = "Ivan",
+           Age = 22,
+           HappytDay = DateTime.Now
+        });
 ```
