@@ -66,6 +66,7 @@ The extension for the Dictionary type allows you to work directly with CSV files
 ### Параметры
 
 ```c#
+
         bool IsHeader  // учитывать наличие заголовока в csv файле / записывать заголовок
         bool IsStrict  // применить strict режим при загрузке csv файла
                        // сопоставлять количество элементов прочитанных из csv файла
@@ -73,6 +74,7 @@ The extension for the Dictionary type allows you to work directly with CSV files
         bool IsTrim    // обрезать лишние пробелы при чтении csv файла
         uint LineSkip  // пропустить указанное количество строк при загрузке в csv файла
         char Separator // задать разделитель данных в csv файле
+
 ```
 
 ## License
