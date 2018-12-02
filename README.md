@@ -49,6 +49,10 @@ The extension for the Dictionary type allows you to work directly with CSV files
            Age = 22,
            HappytDay = DateTime.Now
         });
+        // по умолчанию, без параметров, файл будет сохранен с именем класса и расширением `.csv`
+        dic.Save();
+        // или с указанием файла
+        dic.Save("TestData.csv");
 ```
 
 ## License
