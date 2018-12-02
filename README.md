@@ -40,6 +40,8 @@ The extension for the Dictionary type allows you to work directly with CSV files
         dic.Load<TestData>();
         // или с указанием файла
         dic.Load<TestData>("TestData.csv");
+        // перегрузка метода .Add() с одним параметром, классом данных,
+        // ключь выбирается автоматически
         
             [CSVClassMapAttribute(nameof(Id), true, 0)]
             public String Id { get; set; }
