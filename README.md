@@ -22,7 +22,7 @@ The extension for the Dictionary type allows you to work directly with CSV files
         public class TestData : CSVPropertyMapMethod
         {
             // Формат атрибутов:
-            // имя параметра, ключь, индекс
+            // имя параметра, ключь, индекс - (nameof(element), true/false, int >= 0)
             // имя параметра, индекс, ключь
             // имя параметра, ключь
             // имя параметра, индекс
