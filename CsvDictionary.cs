@@ -23,7 +23,7 @@
     SOFTWARE.
  */
 
-using System;
+ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -45,6 +45,15 @@ namespace Extensions
 
     /// <summary>
     /// класс атрибутов для классов данных
+    /// 
+    /// [CSVClassMapAttribute(nameof(element), true, 0)]
+    /// 
+    /// Формат атрибутов:
+    /// имя параметра, ключь, индекс - (nameof(element), true/false, int >= 0)
+    /// имя параметра, индекс, ключь - (nameof(element), int >= 0, true/false)
+    /// имя параметра, ключь - (nameof(element), true/false)
+    /// имя параметра, индекс - (nameof(element), int >= 0)
+    /// имя параметра - (nameof(element)) значения атрибутов по умолчанию
     /// </summary>
     [Serializable]
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Field | AttributeTargets.Property | AttributeTargets.Parameter)]
@@ -82,16 +91,17 @@ namespace Extensions
         }
 
         /// <summary>
-        /// Class Helper
+        /// Class CSVClassMapAttribute Helper
         /// </summary>
         /// <param name="isFormat"></param>
         /// <returns></returns>
         public string ToString(bool isFormat = true)
         {
             return string.Format(
+                "\tAttr Nane: {}" + ((isFormat) ? Environment.NewLine : ", ") +
                 "\tCSV Primary key: {}" + ((isFormat) ? Environment.NewLine : ", ") +
                 "\tCSV Index: {}" + ((isFormat) ? Environment.NewLine : ", "),
-                CsvKey, CsvIndex
+                CsvName, CsvKey, CsvIndex
             );
         }
     }
@@ -149,7 +159,7 @@ namespace Extensions
     public class CsvDictionary<Tkey> : Dictionary<Tkey, Object>
     {
         private string __fname = null;
-        private char[] __escapeChars = new[] { '|', '\'', '\n' };
+        private char[] __escapeChars = new[] { '|', '\'', '\n', '\r' };
 
         /// <summary>
         /// учитывать заголовок в csv файле
@@ -166,7 +176,7 @@ namespace Extensions
         /// </summary>
         public bool IsTrim { get; set; }
         /// <summary>
-        /// пропустить указанное количество строк при загрузке в csv файла
+        /// пропустить указанное количество строк при загрузке из csv файла
         /// </summary>
         public uint LineSkip { get; set; }
         /// <summary>
@@ -378,9 +388,9 @@ namespace Extensions
                     {
                         sb.Append(p[i].Name);
                         if (i < p.Length - 1)
-                            sb.Append("|");
+                            sb.Append(__escapeChars[0]);
                     }
-                    sb.Append("\n");
+                    sb.Append(__escapeChars[2]);
                 }
             }
             foreach (KeyValuePair<Tkey, object> e in this)
@@ -392,9 +402,9 @@ namespace Extensions
                 {
                     sb.Append(p[i].GetValue(e.Value, null));
                     if (i < p.Length - 1)
-                        sb.Append("|");
+                        sb.Append(__escapeChars[0]);
                 }
-                sb.Append("\n");
+                sb.Append(__escapeChars[2]);
             }
             File.WriteAllText(__fname, sb.ToString());
             return true;
