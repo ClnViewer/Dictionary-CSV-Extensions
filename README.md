@@ -8,6 +8,7 @@ The extension for the Dictionary type allows you to work directly with CSV files
 - Компактный
 - Удобен для тестовой загрузки/выгрузки данных из типа Dictionary.
 - Основывается на рефлексии, не требует дополнительного описания типов.
+- В один экземпляр Dictionary можно в разное впемя загружать различные классы данных, при совпадении типа ключа создание нового экземпляра не требуется.
 - Понимает атрибуты указанные в классе данных:
   - Атрибут `Key` указывает на поле являющееся ключем.
   - Атрибут `Index` задает порядок заполнения данных __из__ `csv` файла.
@@ -25,8 +26,8 @@ The extension for the Dictionary type allows you to work directly with CSV files
             public String Name { get; set; }
             [CSVClassMapAttribute(nameof(Age), false, 2)]
             public int Age { get; set; }
-            [CSVClassMapAttribute(nameof(HappytDay), false, 3)]
-            public DateTime HappytDay { get; set; }
+            [CSVClassMapAttribute(nameof(HappyDay), false, 3)]
+            public DateTime HappyDay { get; set; }
         }
 ```
 
