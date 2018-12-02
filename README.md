@@ -21,7 +21,12 @@ The extension for the Dictionary type allows you to work directly with CSV files
 ```c#
         public class TestData : CSVPropertyMapMethod
         {
+            // Формат атрибутов:
             // имя параметра, ключь, индекс
+            // имя параметра, индекс, ключь
+            // имя параметра, ключь
+            // имя параметра, индекс
+            // имя параметра
             [CSVClassMapAttribute(nameof(Id), true, 0)]
             public String Id { get; set; }
             [CSVClassMapAttribute(nameof(Name), false, 1)]
