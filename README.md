@@ -23,10 +23,10 @@ The extension for the Dictionary type allows you to work directly with CSV files
         {
             // Формат атрибутов:
             // имя параметра, ключь, индекс - (nameof(element), true/false, int >= 0)
-            // имя параметра, индекс, ключь
-            // имя параметра, ключь
-            // имя параметра, индекс
-            // имя параметра
+            // имя параметра, индекс, ключь - (nameof(element), int >= 0, true/false)
+            // имя параметра, ключь - (nameof(element), true/false)
+            // имя параметра, индекс - (nameof(element), int >= 0)
+            // имя параметра - (nameof(element)) значения атрибутов по умолчанию
             [CSVClassMapAttribute(nameof(Id), true, 0)]
             public String Id { get; set; }
             [CSVClassMapAttribute(nameof(Name), false, 1)]
