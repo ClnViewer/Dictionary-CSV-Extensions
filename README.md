@@ -16,7 +16,7 @@ The extension for the Dictionary type allows you to work directly with CSV files
   
 ### Пример класса данных
 
-```
+```c#
         public class TestData : CSVPropertyMapMethod
         {
             [CSVClassMapAttribute(nameof(Id), true, 0)]
