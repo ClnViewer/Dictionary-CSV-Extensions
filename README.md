@@ -43,13 +43,14 @@ The extension for the Dictionary type allows you to work directly with CSV files
 
 ```c#
 
-        // при инициализации указывается тип ключа
+        // При инициализации указывается тип ключа
         CsvDictionary<String> dic = new CsvDictionary<String>();
-        // при использовании метода `.Load<Type>()` - Dictionary всегда очищается от предыдущих данных
+        // При использовании метода `.Load<Type>()` - Dictionary всегда очищается от предыдущих данных
         // по умолчанию, без параметров, будет попытка загрузить файл с именем класса и расширением `.csv`
         dic.Load<TestData>();
         // или с указанием файла
         dic.Load<TestData>("TestData.csv");
+        // Добавление класса данных без явного указания ключа в диктонарий
         // перегрузка метода `.Add()` с одним параметром, классом данных,
         // ключь выбирается автоматически
         dic.Add(new TestData() {
@@ -58,6 +59,19 @@ The extension for the Dictionary type allows you to work directly with CSV files
            Age = 22,
            HappytDay = DateTime.Now
         });
+        // Добавление или обновление класса данных по ключу в диктонарий
+        AddOrUpdate("abc",new TestData() {
+           Id = "abc" ,
+           Name = "Ivan",
+           Age = 22,
+           HappytDay = DateTime.Now
+        });
+        // Поиск данных по ключу в диктонарий
+        // перегрузка метода `.TryGetValue()` с типом класса данных,
+        // отдельная реализация для `Mono`
+        TestData xdata;
+        if (TryGetValue<TestData>("abc", out xdata))
+           ...
         // по умолчанию, без параметров, файл будет сохранен с именем класса и расширением `.csv`
         dic.Save();
         // или с указанием файла
