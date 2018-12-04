@@ -60,10 +60,10 @@ The extension for the Dictionary type allows you to work directly with CSV files
            HappytDay = DateTime.Now
         });
         // Добавление или обновление класса данных по ключу в диктонарий
-        AddOrUpdate("abc", new TestData() {
-           Id = "abc" ,
-           Name = "Ivan",
-           Age = 22,
+        AddOrUpdate("def", new TestData() {
+           Id = "def" ,
+           Name = "Ivona",
+           Age = 33,
            HappytDay = DateTime.Now
         });
         // Поиск данных по ключу в диктонарий
