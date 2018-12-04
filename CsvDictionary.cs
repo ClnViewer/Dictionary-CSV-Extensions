@@ -23,7 +23,7 @@
     SOFTWARE.
  */
 
- using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -36,11 +36,13 @@ using System.Text;
 ///    CsvDictionary<String> = new CsvDictionary<String>();
 /// 
 ///    void   Add(object obj);
+///    void   AddOrUpdate(Tkey id, Object obj);
+///    bool   TryGetValue<T>(Tkey id, out T xobj);
 ///    uint   Load<ClassType>(string fname);
 ///    bool   Save(string fname);
 /// </summary>
 
-namespace Extensions
+namespace Extension
 {
 
     /// <summary>
@@ -160,6 +162,7 @@ namespace Extensions
     {
         private string __fname = null;
         private char[] __escapeChars = new[] { '|', '\'', '\n', '\r' };
+        private bool __IsMono;
 
         /// <summary>
         /// учитывать заголовок в csv файле
@@ -216,6 +219,46 @@ namespace Extensions
             IsStrict = true;
             IsTrim = true;
             LineSkip = 0;
+            __IsMono = (Type.GetType("Mono.Runtime") != null);
+        }
+
+        /// <summary>
+        /// Добавление или обновление класса данных по ключу в диктонарий
+        /// </summary>
+        /// <param name="id">ключ</param>
+        /// <param name="obj">класс данных</param>
+        public void AddOrUpdate(Tkey id, Object obj)
+        {
+            bool ret = ContainsKey(id);
+            if (ret)
+                this[id] = obj;
+            else
+                Add(id, obj);
+        }
+
+        /// <summary>
+        /// Поиск данных по ключу в диктонарий
+        /// </summary>
+        /// <param name="id">тип ключа</param>
+        /// <param name="obj">тип класса данных</param>
+        public bool TryGetValue<T>(Tkey id, out T xobj)
+        {
+            Object obj = null;
+            try
+            {
+                if (__IsMono)
+                {
+                    bool ret = ContainsKey(id);
+                    if (ret)
+                        obj = this[id];
+                    return ret;
+                }
+                return TryGetValue(id, out obj);
+            }
+            finally
+            {
+                xobj = (T)obj;
+            }
         }
 
         /// <summary>
@@ -368,7 +411,7 @@ namespace Extensions
 
             StringBuilder sb = new StringBuilder();
 
-            /* write Header || not file name */
+            /* write Header || not File name */
             if (IsHeader || __IsFileName)
             {
                 KeyValuePair<Tkey, object> e = this.ElementAt(0);
@@ -406,7 +449,7 @@ namespace Extensions
                 }
                 sb.Append(__escapeChars[2]);
             }
-            File.WriteAllText(__fname, sb.ToString());
+            File.WriteAllText(__fname, sb.ToString(), Encoding.UTF8);
             return true;
         }
     }
