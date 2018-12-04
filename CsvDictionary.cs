@@ -1,4 +1,4 @@
-/*
+﻿/*
     MIT License
 
     Copyright (c) 2018 PS
@@ -160,9 +160,10 @@ namespace Extension
     /// </example>
     public class CsvDictionary<Tkey> : Dictionary<Tkey, Object>
     {
+        private bool __IsMono;
         private string __fname = null;
         private char[] __escapeChars = new[] { '|', '\'', '\n', '\r' };
-        private bool __IsMono;
+        private static readonly object __lock = new object();
 
         /// <summary>
         /// учитывать заголовок в csv файле
@@ -305,6 +306,13 @@ namespace Extension
         /// <returns>количество загруженных строк</returns>
         public uint Load<T>(string fname = null) where T : class, new()
         {
+            lock (__lock)
+            {
+                return __Load<T>(fname);
+            }
+        }
+        private uint __Load<T>(string fname) where T : class, new()
+        {
             Type t = typeof(T);
             uint cnt = 0;
 
@@ -403,6 +411,13 @@ namespace Extension
         /// <param name="fname">имя файла csv</param>
         /// <returns>bool</returns>
         public bool Save(string fname = null)
+        {
+            lock (__lock)
+            {
+                return __Save(fname);
+            }
+        }
+        private bool __Save(string fname)
         {
             bool __IsFileName = __EmptyFileName(fname);
 
