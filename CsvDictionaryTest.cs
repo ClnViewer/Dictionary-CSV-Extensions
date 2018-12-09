@@ -85,7 +85,11 @@ namespace CsvDictionaryTest
             TestData tdItem = null;
             bool ret = csvd.TryGetValue<TestData>("1234567890", out tdItem);
 
-            Console.WriteLine("return {0}: {1}", ret, tdItem.ToString());
+            Console.WriteLine(
+                        "return {0}: {1}",
+                        ret,
+                        ((tdItem == null) ? "item not found" : tdItem.ToString())
+            );
         }
     }
 }
