@@ -70,8 +70,7 @@ The extension for the Dictionary type allows you to work directly with CSV files
            HappytDay = DateTime.Now
         });
         // Поиск данных по ключу в диктонарий
-        // перегрузка метода `.TryGetValue()` с типом класса данных,
-        // отдельная реализация для `Mono`
+        // перегрузка метода `.TryGetValue()` с типом класса данных
         TestData xdata;
         if (TryGetValue<TestData>("abc", out xdata))
            ...
