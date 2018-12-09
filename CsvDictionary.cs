@@ -40,6 +40,9 @@ using System.Text;
 ///    bool   TryGetValue<T>(Tkey id, out T xobj);
 ///    uint   Load<ClassType>(string fname);
 ///    bool   Save(string fname);
+///    
+///    Поддерживает формат поля byte[] array,
+///    имеет собственный конвертор в HEX формат.
 /// </summary>
 
 namespace Extension
@@ -48,12 +51,18 @@ namespace Extension
     /// <summary>
     /// класс атрибутов для классов данных
     /// 
+    /// Отметить как индексное поле.
     /// [CSVClassMapAttribute(nameof(element), true, 0)]
+    /// 
+    /// Игнорировать поле - не включать его в сохраняемый список
+    /// и пропускать при загрузке.
+    /// [CSVClassMapAttribute(nameof(element), false, true)]
     /// 
     /// Формат атрибутов:
     /// имя параметра, ключь, индекс - (nameof(element), true/false, int >= 0)
     /// имя параметра, индекс, ключь - (nameof(element), int >= 0, true/false)
     /// имя параметра, ключь - (nameof(element), true/false)
+    /// имя параметра, ключь, игнорировать - (nameof(element), false, true)
     /// имя параметра, индекс - (nameof(element), int >= 0)
     /// имя параметра - (nameof(element)) значения атрибутов по умолчанию
     /// </summary>
@@ -63,33 +72,68 @@ namespace Extension
     {
         public string CsvName { get; private set; }
         public bool CsvKey { get; private set; }
+        public bool CsvIgnore { get; private set; }
         public int CsvIndex { get; private set; }
 
+        /// <summary>
+        /// метод поля - (имя параметра)
+        /// добавляет атрибут с параметрами значений по умолчанию
+        /// </summary>
         public CSVClassMapAttribute(string name)
         {
-            __CSVClassMapAttribute(name, false, -1);
+            __CSVClassMapAttribute(name, false, false, -1);
         }
+        /// <summary>
+        /// метод поля - (имя параметра, ключь)
+        /// </summary>
         public CSVClassMapAttribute(string name, bool key)
         {
-            __CSVClassMapAttribute(name, key, -1);
+            __CSVClassMapAttribute(name, key, false, -1);
         }
+        /// <summary>
+        /// метод поля - (имя параметра, индекс)
+        /// </summary>
         public CSVClassMapAttribute(string name, int index)
         {
-            __CSVClassMapAttribute(name, false, index);
+            __CSVClassMapAttribute(name, false, false, index);
         }
+        /// <summary>
+        /// метод поля - (имя параметра, ключь, индекс)
+        /// </summary>
         public CSVClassMapAttribute(string name, bool key, int index)
         {
-            __CSVClassMapAttribute(name, key, index);
+            __CSVClassMapAttribute(name, key, false, index);
         }
+        /// <summary>
+        /// метод поля - (имя параметра, индекс, ключь)
+        /// </summary>
         public CSVClassMapAttribute(string name, int index, bool key)
         {
-            __CSVClassMapAttribute(name, key, index);
+            __CSVClassMapAttribute(name, key, false, index);
         }
-        private void __CSVClassMapAttribute(string name, bool key, int index)
+        /// <summary>
+        /// метод для игнорирования поля - (nameof(element), false, true)
+        /// </summary>
+        public CSVClassMapAttribute(string name, bool key, bool ignore)
+        {
+            __CSVClassMapAttribute(name, key, ignore, -1);
+        }
+        /// <summary>
+        /// метод для вызова из CSVPropertyMapMethod.FindAttr
+        /// </summary>
+        public CSVClassMapAttribute(string name, bool key, bool ignore, int index)
+        {
+            __CSVClassMapAttribute(name, key, ignore, index);
+        }
+        /// <summary>
+        /// общий приватный метод
+        /// </summary>
+        private void __CSVClassMapAttribute(string name, bool key, bool ignore, int index)
         {
             CsvName = ((name != null) ? name : CsvName);
             CsvKey = key;
             CsvIndex = index;
+            CsvIgnore = ignore;
         }
 
         /// <summary>
@@ -129,11 +173,11 @@ namespace Extension
                     (!string.IsNullOrWhiteSpace(attr.CsvName)) &&
                     (attr.CsvName.Equals(name))
                    )
-                    return new CSVClassMapAttribute(name, attr.CsvKey, attr.CsvIndex);
+                    return new CSVClassMapAttribute(name, attr.CsvKey, attr.CsvIgnore, attr.CsvIndex);
             }
             return ((isNull) ?
                 null :
-                new CSVClassMapAttribute(name, false, -1)
+                new CSVClassMapAttribute(name, false, false, -1)
             );
         }
     }
@@ -160,7 +204,6 @@ namespace Extension
     /// </example>
     public class CsvDictionary<Tkey> : Dictionary<Tkey, Object>
     {
-        private bool __IsMono;
         private string __fname = null;
         private char[] __escapeChars = new[] { '|', '\'', '\n', '\r' };
         private static readonly object __lock = new object();
@@ -214,13 +257,30 @@ namespace Extension
             return String.IsNullOrWhiteSpace(__fname);
         }
 
+        private string __BytesToString(byte[] data)
+        {
+            if (data.Length == 0)
+                return String.Empty;
+            return BitConverter.ToString(data).Replace("-", "");
+        }
+
+        private byte[] __StringToBytes(string sdata)
+        {
+            if (String.IsNullOrWhiteSpace(sdata))
+                return new byte[0];
+
+            byte[] bytes = new byte[sdata.Length / 2];
+            for (int i = 0; i < sdata.Length; i += 2)
+                bytes[i / 2] = Convert.ToByte(sdata.Substring(i, 2), 16);
+            return bytes;
+        }
+
         public CsvDictionary() : base()
         {
             IsHeader = true;
             IsStrict = true;
             IsTrim = true;
             LineSkip = 0;
-            __IsMono = (Type.GetType("Mono.Runtime") != null);
         }
 
         /// <summary>
@@ -242,19 +302,18 @@ namespace Extension
         /// </summary>
         /// <param name="id">тип ключа</param>
         /// <param name="obj">тип класса данных</param>
-        public bool TryGetValue<T>(Tkey id, out T xobj)
+        public bool TryGetValue<T>(Tkey id, out T xobj) where T : class, new()
         {
             Object obj = null;
             try
             {
-                if (__IsMono)
-                {
-                    bool ret = ContainsKey(id);
-                    if (ret)
-                        obj = this[id];
-                    return ret;
-                }
-                return TryGetValue(id, out obj);
+                if (Count == 0)
+                    return false;
+
+                bool ret = ContainsKey(id);
+                if (ret)
+                    obj = this[id];
+                return ret;
             }
             finally
             {
@@ -283,7 +342,7 @@ namespace Extension
                 if ((res = mmt.FindAttr(p[i].Name, true)) == null)
                     continue;
 
-                if (!res.CsvKey)
+                if ((!res.CsvKey) || (res.CsvIgnore))
                     continue;
 
                 index = ((res.CsvIndex == -1) ? i : res.CsvIndex);
@@ -334,10 +393,15 @@ namespace Extension
             using (StreamReader rd = new StreamReader(__fname, Encoding.UTF8))
             {
                 string line;
+                T obj = new T();
+                Object Id = null;
+                CSVClassMapAttribute res;
+                CSVPropertyMapMethod mmt = obj as CSVPropertyMapMethod;
 
                 while ((line = rd.ReadLine()) != null)
                 {
                     cnt++;
+                    Id = null;
 
                     if (
                         (LineSkip > cnt) ||
@@ -346,24 +410,41 @@ namespace Extension
                        )
                         continue;
 
+                    int cells = 0;
                     string[] part = line.Split(__escapeChars[0]);
 
                     if ((IsStrict) && (part.Length != nele))
-                        continue;
+                    {
+                        for (int i = 0; ((i < part.Length) && (i < nele)); i++)
+                        {
+                            if (
+                                ((res = mmt.FindAttr(p[i].Name, true)) != null) &&
+                                (res.CsvIgnore)
+                               )
+                                continue;
+                            cells++;
+                        }
+                        if (cells == nele)
+                            continue;
 
-                    T obj = new T();
-                    Object Id = null;
-                    CSVClassMapAttribute res;
-                    CSVPropertyMapMethod mmt = obj as CSVPropertyMapMethod;
+                        nele = cells;
+                        cells = 0;
+                    }
 
-                    for (int i = 0; ((i < part.Length) && (i < nele)); i++)
+                    for (int i = 0; ((i < part.Length) && (cells < nele)); i++)
                     {
                         try
                         {
                             string str;
+                            res = mmt.FindAttr(p[i].Name, true);
+
+                            if ((res != null) && (res.CsvIgnore))
+                                continue;
+
+                            cells++;
 
                             if (
-                                ((res = mmt.FindAttr(p[i].Name, true)) != null) &&
+                                (res != null) &&
                                 (res.CsvIndex > -1) &&
                                 (res.CsvIndex < part.Length)
                                )
@@ -383,7 +464,11 @@ namespace Extension
                             if (str.StartsWith("\"") && str.EndsWith("\""))
                                 str = str.Substring(1, str.Length - 2).Replace("\"\"", "\"");
 
-                            p[i].SetValue(obj, Convert.ChangeType(str, p[i].PropertyType), null);
+                            if (p[i].PropertyType == typeof(byte[]))
+                                p[i].SetValue(obj, __StringToBytes(str), null);
+                            else
+                                p[i].SetValue(obj, Convert.ChangeType(str, p[i].PropertyType), null);
+
 
                             if (
                                 (i == 0) ||
@@ -425,12 +510,15 @@ namespace Extension
                 return false;
 
             StringBuilder sb = new StringBuilder();
+            CSVClassMapAttribute res;
+            CSVPropertyMapMethod mmt;
 
             /* write Header || not File name */
             if (IsHeader || __IsFileName)
             {
                 KeyValuePair<Tkey, object> e = this.ElementAt(0);
                 Type t = e.Value.GetType();
+                mmt = e.Value as CSVPropertyMapMethod;
 
                 if (__IsFileName)
                 {
@@ -444,27 +532,58 @@ namespace Extension
 
                     for (int i = 0; i < p.Length; i++)
                     {
-                        sb.Append(p[i].Name);
-                        if (i < p.Length - 1)
+                        var aaa = p[i].Name;
+                        if (
+                            ((res = mmt.FindAttr(p[i].Name, true)) != null) &&
+                            (res.CsvIgnore)
+                           )
+                            continue;
+
+                        if (i > 0)
                             sb.Append(__escapeChars[0]);
+                        sb.Append(p[i].Name);
                     }
                     sb.Append(__escapeChars[2]);
                 }
             }
-            foreach (KeyValuePair<Tkey, object> e in this)
-            {
-                Type t = e.Value.GetType();
-                PropertyInfo[] p = t.GetProperties();
 
-                for (int i = 0; i < p.Length; i++)
+            using (StreamWriter sw = new StreamWriter(__fname, false, Encoding.UTF8))
+            {
+                if (sb.Length > 0)
                 {
-                    sb.Append(p[i].GetValue(e.Value, null));
-                    if (i < p.Length - 1)
-                        sb.Append(__escapeChars[0]);
+                    sw.Write(sb.ToString());
+                    sb.Clear();
                 }
-                sb.Append(__escapeChars[2]);
+
+                foreach (KeyValuePair<Tkey, object> e in this)
+                {
+                    Type t = e.Value.GetType();
+                    PropertyInfo[] p = t.GetProperties();
+                    mmt = e.Value as CSVPropertyMapMethod;
+
+                    for (int i = 0; i < p.Length; i++)
+                    {
+                        if (
+                            ((res = mmt.FindAttr(p[i].Name, true)) != null) &&
+                            (res.CsvIgnore)
+                           )
+                            continue;
+
+                        var obj = p[i].GetValue(e.Value, null);
+
+                        if (i > 0)
+                            sb.Append(__escapeChars[0]);
+
+                        if (obj.GetType() == typeof(byte[]))
+                            sb.Append(__BytesToString((byte[])obj));
+                        else
+                            sb.Append(obj);
+                    }
+                    sb.Append(__escapeChars[2]);
+                    sw.Write(sb.ToString());
+                    sb.Clear();
+                }
             }
-            File.WriteAllText(__fname, sb.ToString(), Encoding.UTF8);
             return true;
         }
     }
