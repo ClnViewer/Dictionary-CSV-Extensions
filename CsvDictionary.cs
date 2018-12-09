@@ -574,10 +574,16 @@ namespace Extension
                         if (i > 0)
                             sb.Append(__escapeChars[0]);
 
-                        if (obj.GetType() == typeof(byte[]))
-                            sb.Append(__BytesToString((byte[])obj));
-                        else
-                            sb.Append(obj);
+                        if (obj != null)
+                        {
+                            if (obj.GetType() == typeof(byte[]))
+                            {
+                                if (((byte[])(obj)).Length > 0)
+                                    sb.Append(__BytesToString((byte[])obj));
+                            }
+                            else
+                                sb.Append(obj);
+                        }
                     }
                     sb.Append(__escapeChars[2]);
                     sw.Write(sb.ToString());
