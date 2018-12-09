@@ -31,6 +31,8 @@ The extension for the Dictionary type allows you to work directly with CSV files
             // имя параметра, индекс - (nameof(element), int >= 0)
             // имя параметра, ключь, игнорировать - (nameof(element), false, true)
             // имя параметра - (nameof(element)) значения атрибутов по умолчанию
+            
+            // поле помеченное как ключь с индексом 0
             [CSVClassMapAttribute(nameof(Id), true, 0)]
             public String Id { get; set; }
             [CSVClassMapAttribute(nameof(Name), false, 1)]
@@ -39,6 +41,12 @@ The extension for the Dictionary type allows you to work directly with CSV files
             public int Age { get; set; }
             [CSVClassMapAttribute(nameof(HappyDay), false, 3)]
             public DateTime HappyDay { get; set; }
+            // поле имеющее тип byte[] array
+            [CSVClassMap(nameof(BytesArray), false, 4)]
+            public byte[] BytesArray { get; set; }
+            // игнорировать поле
+            [CSVClassMap(nameof(IgnoreData), false, true)]
+            public ulong IgnoreData { get; set; }
         }
 ```
 
