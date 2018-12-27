@@ -57,11 +57,15 @@ The extension for the Dictionary type allows you to work directly with CSV files
 ### Пример инициализации CsvDictionary
 
 ```c#
-
         // При инициализации указывается тип ключа
         CsvDictionary<String> dic = new CsvDictionary<String>();
         // При использовании метода `.Load<Type>()` - Dictionary всегда очищается от предыдущих данных
         // по умолчанию, без параметров, будет попытка загрузить файл с именем класса и расширением `.csv`
+ ```
+ 
+ Метод __Load(..)__
+ 
+ ``c#
         dic.Load<TestData>();
         // или с указанием файла
         dic.Load<TestData>("TestData.csv");
@@ -69,6 +73,11 @@ The extension for the Dictionary type allows you to work directly with CSV files
         dic.Load(Type);
         // или с указанием типа и именем файла
         dic.Load(Type, "TestData.csv");
+  ```
+  
+  Метод __Add(..)__ __AddOrUpdate(..)__
+  
+  ```c#
         // Добавление класса данных без явного указания ключа в диктонарий
         // перегрузка метода `.Add()` с одним параметром, классом данных,
         // ключь выбирается автоматически
