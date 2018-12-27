@@ -17,7 +17,7 @@ The extension for the Dictionary type allows you to work directly with CSV files
   - Атрибуты не являются обязательными, по умолчанию ключем является первое поле `csv` файла, и первый элемент в описании класса данных. Тип элемента назначенного ключем долежн совпадать с типом ключа указанным при инициализации Dictionary.
   - При указании атрибута `Index`, необходимо описать индексы во всех полях класса.
 - Поддерживает формат поля `byte[] array`, данные сохраняет в HEX формате, имеет собственный конвертор.
-- Поддерживает вложенные типы данных с типами `Type List<>`, `IEnumerable<>`, сохраняется в отдельных файлах, имя формируется из названия файла `root .csv` + имя параметра.
+- Поддерживает вложенные типы данных с типами `Type List<>`, `IEnumerable<>`, сохраняется в отдельных файлах, имя формируется из названия файла `root file. + field name + .csv` - дополняется именем параметра.
  
   
 ### Пример класса данных
@@ -64,6 +64,10 @@ The extension for the Dictionary type allows you to work directly with CSV files
         dic.Load<TestData>();
         // или с указанием файла
         dic.Load<TestData>("TestData.csv");
+        // или с прямым указанием типа
+        dic.Load(Type);
+        // или с указанием типа и именем файла
+        dic.Load(Type, "TestData.csv");
         // Добавление класса данных без явного указания ключа в диктонарий
         // перегрузка метода `.Add()` с одним параметром, классом данных,
         // ключь выбирается автоматически
@@ -89,6 +93,11 @@ The extension for the Dictionary type allows you to work directly with CSV files
         dic.Save();
         // или с указанием файла
         dic.Save("TestData.csv");
+        // перезагрузка данных с сохранением, в соответствии с установленными параметрами:
+        // `IsHeader`, `IsStrict`, `IsLoadChildren`, `EncodingFile`
+        // имя `.csv` файла данных берется из предварительно сформированного при создании
+        // или загрузки `root file .csv` или из названия класса данных
+        dc.Flush();
 ```
 
 ### Параметры
@@ -107,6 +116,7 @@ The extension for the Dictionary type allows you to work directly with CSV files
                        // параметр задается в секундах
         uint LineSkip  // пропустить указанное количество строк при загрузке из csv файла
         char Separator // задать разделитель данных в csv файле
+        Encoding EncodingFile // кодировка csv файлов, по умолчанию UTF8
 
 ```
 
