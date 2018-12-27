@@ -1,3 +1,9 @@
+[![Build status](https://ci.appveyor.com/api/projects/status/r07aowi0rha2xw9y?svg=true)](https://ci.appveyor.com/project/ClnViewer/dictionary-csv-extensions)
+[![Build status](https://ci.appveyor.com/api/projects/status/r07aowi0rha2xw9y/branch/master?svg=true)](https://ci.appveyor.com/project/ClnViewer/dictionary-csv-extensions/branch/master)
+
+
+
+
 # Dictionary CSV Extensions
 The extension for the Dictionary type allows you to work directly with CSV files as a database.
 
@@ -8,6 +14,8 @@ The extension for the Dictionary type allows you to work directly with CSV files
 ## Сборки
 
 - [AppVeyor собранные артефакты](https://ci.appveyor.com/project/ClnViewer/dictionary-csv-extensions/build/artifacts) zip, nuget
+- [Nuget feed](https://ci.appveyor.com/nuget/dictionary-csv-extensions-yffo5bgn5j35)
+
 
 ## Возможности
 
