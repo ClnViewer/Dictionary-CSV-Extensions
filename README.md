@@ -5,6 +5,12 @@ The extension for the Dictionary type allows you to work directly with CSV files
 
 Расширение основанное на рефлексии и атрибутах классов для типа Dictionary позволяющее работать напрямую с CSV  файлами как с базой данных. Ознакомиться с работой расширения можно собрав [тестовый пример](CsvDictionaryTest.cs).
 
+## Сборки
+
+- [AppVeyor собранные артифакты](https://ci.appveyor.com/project/ClnViewer/dictionary-csv-extensions/build/artifacts) zip, nuget
+
+## Возможности
+
 - Компактный, достаточно добавить один файл в проект.
 - Не имеет зависимостей, должен собираться с любой версией `.NET`, `Mono`.
 - Удобен для тестовой загрузки/выгрузки данных из типа Dictionary.
