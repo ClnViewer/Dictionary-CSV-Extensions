@@ -25,6 +25,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
 /// CsvDictionary class
 using Extension;
 
@@ -61,12 +63,18 @@ namespace CsvDictionaryTest
         public byte[] BytesArray { get; set; }
         [CSVClassMap(nameof(IgnoreData), false, true)]
         public ulong IgnoreData { get; set; }
+        [CSVClassMap(nameof(StringArray), false, 5)]
+        public List<String> StringArray { get; set; }
+
+        ///[CSVClassMap(nameof(IenumArray), false, 6)]
+        ///public IEnumerable<String> IenumArray { get; set; }
     }
 
     class Program
     {
         static void Main(string[] args)
         {
+
             TestData td = new TestData()
             {
                 Id = "1234567890",
@@ -74,22 +82,34 @@ namespace CsvDictionaryTest
                 Age = 22,
                 HappyDay = DateTime.Now,
                 BytesArray = new byte[] { 0x11, 0x12, 0x13, 0x14 },
-                IgnoreData = 12345
+                IgnoreData = 12345,
+                StringArray = new List<string>()
             };
 
+            td.StringArray.Add("abc");
+            td.StringArray.Add("def");
+            td.StringArray.Add("wxv");
+
             CsvDictionary<String> csvd = new CsvDictionary<String>();
+            csvd.IsAutoFlush = true;
             csvd.Add(td);
             csvd.Save();
+
+            /// csvd.Flush();
 
             csvd.Load<TestData>();
             TestData tdItem = null;
             bool ret = csvd.TryGetValue<TestData>("1234567890", out tdItem);
+
+            tdItem.StringArray.Add("fgh");
 
             Console.WriteLine(
                         "return {0}: {1}",
                         ret,
                         ((tdItem == null) ? "item not found" : tdItem.ToString())
             );
+
+            Console.ReadLine();
         }
     }
 }

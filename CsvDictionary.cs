@@ -24,6 +24,7 @@
  */
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -66,6 +67,7 @@ namespace Extension
     /// имя параметра, индекс - (nameof(element), int >= 0)
     /// имя параметра - (nameof(element)) значения атрибутов по умолчанию
     /// </summary>
+    #region CSV Map Attribute
     [Serializable]
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Field | AttributeTargets.Property | AttributeTargets.Parameter)]
     public class CSVClassMapAttribute : Attribute
@@ -151,11 +153,13 @@ namespace Extension
             );
         }
     }
+    #endregion
 
     /// <summary>
     /// класс управления атрибутами для классов данных
     /// наследуемый тип
     /// </summary>
+    #region CSV Property Map Attribyte
     public abstract class CSVPropertyMapMethod
     {
         public virtual CSVClassMapAttribute FindAttr(string name, bool isNull = false)
@@ -181,6 +185,7 @@ namespace Extension
             );
         }
     }
+    #endregion
 
     /// <summary>
     /// Расширение для класса Dictionary
@@ -202,8 +207,10 @@ namespace Extension
     ///             public String Age { get; set; }
     ///         }
     /// </example>
+    #region Csv Dictionary main class
     public class CsvDictionary<Tkey> : Dictionary<Tkey, Object>
     {
+        private bool __ischanged = false;
         private string __fname = null;
         private char[] __escapeChars = new[] { '|', '\'', '\n', '\r' };
         private static readonly object __lock = new object();
@@ -223,6 +230,19 @@ namespace Extension
         /// </summary>
         public bool IsTrim { get; set; }
         /// <summary>
+        /// добавлять дату внесенных изменений в IEnumerable файлы базы
+        /// Logging mode - можно использовать вместо лога
+        /// </summary>
+        public bool IsAddDate { get; set; }
+        /// <summary>
+        /// загружать дочерние IEnumerable файлы базы
+        /// </summary>
+        public bool IsLoadChildren { get; set; }
+        /// <summary>
+        /// переодически сохранять и очищать IEnumerable элементы после сохранения
+        /// </summary>
+        public bool IsAutoFlush { get; set; }
+        /// <summary>
         /// пропустить указанное количество строк при загрузке из csv файла
         /// </summary>
         public uint LineSkip { get; set; }
@@ -241,46 +261,17 @@ namespace Extension
                     __escapeChars[0] = value;
             }
         }
-
-        private string __GetTypeName(Type t)
-        {
-            return String.Format("{0}.csv", t.Name);
-        }
-
-        private bool __EmptyFileName(string fname, Type t = null)
-        {
-            __fname = ((fname != null) ? fname :
-                ((__fname != null) ? __fname :
-                   ((t != null) ? __GetTypeName(t) : null)
-                )
-            );
-            return String.IsNullOrWhiteSpace(__fname);
-        }
-
-        private string __BytesToString(byte[] data)
-        {
-            if (data.Length == 0)
-                return String.Empty;
-            return BitConverter.ToString(data).Replace("-", "");
-        }
-
-        private byte[] __StringToBytes(string sdata)
-        {
-            if (String.IsNullOrWhiteSpace(sdata))
-                return new byte[0];
-
-            byte[] bytes = new byte[sdata.Length / 2];
-            for (int i = 0; i < sdata.Length; i += 2)
-                bytes[i / 2] = Convert.ToByte(sdata.Substring(i, 2), 16);
-            return bytes;
-        }
+        /// <summary>
+        /// кодировка csv файлов, по умолчанию UTF8
+        /// </summary>
+        public Encoding EncodingFile { get; set; }
 
         public CsvDictionary() : base()
         {
-            IsHeader = true;
-            IsStrict = true;
-            IsTrim = true;
+            IsAddDate = IsHeader =  IsStrict = IsTrim = true;
+            IsAutoFlush = IsLoadChildren = false;
             LineSkip = 0;
+            EncodingFile = Encoding.UTF8;
         }
 
         /// <summary>
@@ -295,6 +286,8 @@ namespace Extension
                 this[id] = obj;
             else
                 Add(id, obj);
+
+            __ischanged = true;
         }
 
         /// <summary>
@@ -332,17 +325,16 @@ namespace Extension
                 return;
 
             int index = -1;
-            Type t = obj.GetType();
-            PropertyInfo[] p = t.GetProperties();
-            CSVClassMapAttribute res;
-            CSVPropertyMapMethod mmt = obj as CSVPropertyMapMethod;
+            PropertyInfo[] p = obj.GetType().GetProperties();
+            CSVClassMapAttribute res = null;
 
             for (int i = 0; i < p.Length; i++)
             {
-                if ((res = mmt.FindAttr(p[i].Name, true)) == null)
-                    continue;
-
-                if ((!res.CsvKey) || (res.CsvIgnore))
+                if (
+                    (pCvsCheckProperty(p[i], (obj as CSVPropertyMapMethod), ref res)) ||
+                    (res == null) ||
+                    (!res.CsvKey)
+                   )
                     continue;
 
                 index = ((res.CsvIndex == -1) ? i : res.CsvIndex);
@@ -351,9 +343,12 @@ namespace Extension
 
             index = ((index == -1) ? 0 : index);
             Object o = p[index].GetValue(obj, null);
-            
+
             if (o != null)
+            {
                 Add((Tkey)o, obj);
+                __ischanged = true;
+            }
         }
 
         /// <summary>
@@ -361,41 +356,103 @@ namespace Extension
         /// Если имя файла не указано, то имя формируется из имени класса <T>
         /// </summary>
         /// <typeparam name="T">имя класса данных</typeparam>
+        /// <typeparam name="t">тип класса данных</typeparam>
         /// <param name="fname">имя файла csv</param>
         /// <returns>количество загруженных строк</returns>
         public uint Load<T>(string fname = null) where T : class, new()
         {
+            return Load(typeof(T), fname);
+        }
+        public uint Load(Type t, string fname = null)
+        {
             lock (__lock)
             {
-                return __Load<T>(fname);
+                if (pCsvIsEmptyFileName(fname))
+                {
+                    if (pCsvIsEmptyFileName(null, t))
+                        return 0;
+                }
+                uint cnt = pCsvLoad(t, __fname, null, null);
+                __ischanged = ((cnt > 0) ? false : __ischanged);
+                return cnt;
             }
         }
-        private uint __Load<T>(string fname) where T : class, new()
+
+        /// <summary>
+        /// Сохранение диктонария в фйле csv
+        /// Если имя файла не указано, то имя формируется из данных класса в диктонарии
+        /// </summary>
+        /// <param name="fname">имя файла csv</param>
+        /// <returns>bool</returns>
+        public bool Save(string fname = null)
         {
-            Type t = typeof(T);
-            uint cnt = 0;
+            if (Count == 0)
+                return false;
 
-            if (__EmptyFileName(fname))
+            lock (__lock)
             {
-                if (__EmptyFileName(null, t))
-                    return cnt;
-            }
+                bool __IsFileName = pCsvIsEmptyFileName(fname);
 
-            if (!File.Exists(__fname))
+                /* not File name */
+                if (__IsFileName)
+                    if (pCsvIsEmptyFileName(null, this.ElementAt(0).Value.GetType()))
+                        return false;
+
+                if (Count == 0)
+                    return false;
+
+                bool ret = pCsvSaveDictionary<Tkey>(this, __fname, null, null);
+                __ischanged = ((ret) ? false : __ischanged);
+                return ret;
+            }
+        }
+
+        /// <summary>
+        /// Flush Dictionary, save and reload
+        /// </summary>
+        /// <returns>bool</returns>
+        public bool Flush()
+        {
+            if (!__ischanged)
+                return false;
+
+            Type t = this.ElementAt(0).Value.GetType();
+            if (
+                (!Save()) ||
+                (Load(t) == 0)
+               )
+                return false;
+
+            __ischanged = false;
+            return true;
+        }
+
+        #region private Load methods
+
+        private uint pCsvLoad(Type t, string fname, string elename, string id)
+        {
+            int nele;
+            uint cnt = 0;
+            PropertyInfo[] p;
+            string _fname = pCsvGetChildFileName(fname, elename);
+
+            if (!File.Exists(_fname))
                 return cnt;
 
             if (Count != 0)
                 Clear();
 
-            PropertyInfo[] p = t.GetProperties();
-            int nele = p.Length;
+            if ((p = t.GetProperties()) == null)
+                return 0;
 
-            using (StreamReader rd = new StreamReader(__fname, Encoding.UTF8))
+            nele = p.Length;
+
+            using (StreamReader rd = new StreamReader(_fname, EncodingFile))
             {
                 string line;
-                T obj = new T();
-                Object Id = null;
-                CSVClassMapAttribute res;
+                Object Id = null,
+                       obj = Activator.CreateInstance(t);
+                CSVClassMapAttribute res = null;
                 CSVPropertyMapMethod mmt = obj as CSVPropertyMapMethod;
 
                 while ((line = rd.ReadLine()) != null)
@@ -411,37 +468,79 @@ namespace Extension
                         continue;
 
                     int cells = 0;
-                    string[] part = line.Split(__escapeChars[0]);
+                    string[] part = line.Split(new char[] { __escapeChars[0] }, nele, StringSplitOptions.None);
 
                     if ((IsStrict) && (part.Length != nele))
                     {
-                        for (int i = 0; ((i < part.Length) && (i < nele)); i++)
+                        for (int i = 0; i < nele; i++)
                         {
-                            if (
-                                ((res = mmt.FindAttr(p[i].Name, true)) != null) &&
-                                (res.CsvIgnore)
-                               )
+                            if (pCvsCheckProperty(p[i], mmt, ref res))
                                 continue;
                             cells++;
                         }
-                        if (cells == nele)
+                        if (cells == 0)
                             continue;
 
                         nele = cells;
                         cells = 0;
                     }
 
-                    for (int i = 0; ((i < part.Length) && (cells < nele)); i++)
+                    for (int i = 0, n = 0; ((i < part.Length) && (cells < nele)); i++, n++)
                     {
                         try
                         {
                             string str;
-                            res = mmt.FindAttr(p[i].Name, true);
+                            res = null;
 
-                            if ((res != null) && (res.CsvIgnore))
+                            if (n >= p.Length)
+                                break;
+
+                            if (pCvsCheckProperty(p[n], mmt, ref res))
+                            {
+                                --i;
                                 continue;
+                            }
 
                             cells++;
+
+                            try
+                            {
+                                /// Type List<>, IEnumerable<>
+                                Type t1 = p[n].PropertyType,
+                                     t2, t4;
+
+                                if (t1.IsGenericType)
+                                {
+                                    t2 = p[n].PropertyType.GetGenericTypeDefinition();
+
+                                    if ((t2 == typeof(List<>)) || (t2 == typeof(IEnumerable<>)))
+                                    {
+                                        Type[] t3 = t1.GetGenericArguments();
+                                        if ((t3 == null) || (t3[0] == null))
+                                            continue;
+
+                                        t4 = t2.MakeGenericType(t3[0]);
+                                        if (t4 == null)
+                                            continue;
+
+                                        Object ie = Activator.CreateInstance(t4);
+                                        if (ie == null)
+                                            continue;
+
+                                        p[n].SetValue(obj, ie, null);
+
+                                        if ((res != null) && (res.CsvKey))
+                                            Id = p[n].GetValue(obj, null);
+
+                                        continue; // TODO
+                                    }
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                var x = ex;
+                                continue;
+                            }
 
                             if (
                                 (res != null) &&
@@ -464,17 +563,17 @@ namespace Extension
                             if (str.StartsWith("\"") && str.EndsWith("\""))
                                 str = str.Substring(1, str.Length - 2).Replace("\"\"", "\"");
 
-                            if (p[i].PropertyType == typeof(byte[]))
-                                p[i].SetValue(obj, __StringToBytes(str), null);
+                            if (p[n].PropertyType == typeof(byte[]))
+                                p[n].SetValue(obj, pCsvStringToBytes(str), null);
                             else
-                                p[i].SetValue(obj, Convert.ChangeType(str, p[i].PropertyType), null);
+                                p[n].SetValue(obj, Convert.ChangeType(str, p[n].PropertyType), null);
 
 
                             if (
-                                (i == 0) ||
+                                (n == 0) ||
                                 ((res != null) && (res.CsvKey))
                                )
-                                Id = p[i].GetValue(obj, null);
+                                Id = p[n].GetValue(obj, null);
                         }
                         catch (Exception)
                         {
@@ -488,110 +587,231 @@ namespace Extension
             }
             return ((IsHeader) ? ((cnt > 0) ? (cnt - 1) : 0) : cnt);
         }
+        #endregion
 
-        /// <summary>
-        /// Сохранение диктонария в фйле csv
-        /// Если имя файла не указано, то имя формируется из данных класса в диктонарии
-        /// </summary>
-        /// <param name="fname">имя файла csv</param>
-        /// <returns>bool</returns>
-        public bool Save(string fname = null)
+        #region private Save methods
+
+        private List<String> pCsvSaveGetHeader(object e)
         {
-            lock (__lock)
+            List<String> cvsHeader = new List<string>();
+            Type t = e.GetType();
+            CSVClassMapAttribute res = null;
+            PropertyInfo[] p = t.GetProperties();
+
+            for (int i = 0; i < p.Length; i++)
             {
-                return __Save(fname);
-            }
-        }
-        private bool __Save(string fname)
-        {
-            bool __IsFileName = __EmptyFileName(fname);
+                if (pCvsCheckProperty(p[i], (e as CSVPropertyMapMethod), ref res))
+                    continue;
 
-            if (Count == 0)
+                if (p[i].GetIndexParameters().Length > 0)
+                {
+                    cvsHeader.Add(t.Name);
+                    break;
+                }
+                else
+                    cvsHeader.Add(p[i].Name);
+            }
+            return cvsHeader;
+        }
+
+        private void pCsvSaveGetEle(object e, StringBuilder sb, string fname, string id)
+        {
+            CSVClassMapAttribute res = null;
+            PropertyInfo[] p = e.GetType().GetProperties();
+
+            for (int i = 0; i < p.Length; i++)
+            {
+                if (pCvsCheckProperty(p[i], (e as CSVPropertyMapMethod), ref res))
+                    continue;
+
+                if (i > 0)
+                    sb.Append(__escapeChars[0]);
+
+                if (p[i].GetIndexParameters().Length > 0)
+                {
+                    string raw = e as string;
+                    if (!String.IsNullOrWhiteSpace(raw))
+                        sb.Append(raw);
+                    break;
+                }
+
+                object obj;
+
+                try
+                {
+                    if ((obj = p[i].GetValue(e, null)) == null)
+                        continue;
+                }
+                catch (Exception)
+                {
+                    continue;
+                }
+
+                if (obj != null)
+                {
+                    if (obj is IEnumerable<Object>)
+                    {
+                        IEnumerable<Object> ie = (obj as IEnumerable<Object>);
+                        if (ie != null)
+                            pCsvSaveIEnumerable(ie, fname, p[i].Name, id);
+                    }
+                    else if (obj.GetType() == typeof(byte[]))
+                    {
+                        if (((byte[])(obj)).Length > 0)
+                            sb.Append(pCsvBytesToString((byte[])obj));
+                    }
+                    else
+                        sb.Append(obj);
+                }
+            }
+
+        }
+
+        private bool pCsvSaveDictionary<IEkey>(
+            IEnumerable<KeyValuePair<IEkey, object>> ie, string fname, string elename, string id
+            )
+        {
+            if (ie.Count() == 0)
                 return false;
 
-            StringBuilder sb = new StringBuilder();
-            CSVClassMapAttribute res;
-            CSVPropertyMapMethod mmt;
+            List<String> cvsHeader = ((IsHeader) ? pCsvSaveGetHeader(ie.ElementAt(0).Value) : null);
+            bool IsWriteId = !String.IsNullOrWhiteSpace(id);
+            bool IsWriteDate = (IsAddDate && IsWriteId);
+            bool IsAppend = (IsWriteId && !IsLoadChildren);
 
-            /* write Header || not File name */
-            if (IsHeader || __IsFileName)
+            using (StreamWriter sw = new StreamWriter(pCsvGetChildFileName(fname, elename), IsAppend, EncodingFile))
             {
-                KeyValuePair<Tkey, object> e = this.ElementAt(0);
-                Type t = e.Value.GetType();
-                mmt = e.Value as CSVPropertyMapMethod;
+                StringBuilder sb = new StringBuilder();
+                sw.AutoFlush = true;
 
-                if (__IsFileName)
+                if ((cvsHeader != null) && (cvsHeader.Count > 0) && (sw.BaseStream.Length <= 3))
                 {
-                    if (__EmptyFileName(null, t))
-                        return false;
+                    if (IsWriteDate)
+                        cvsHeader.Add(typeof(DateTime).ToString());
+                    pCvsSaveWriteHeader(cvsHeader, sw, id);
                 }
 
-                if (IsHeader)
+                foreach (KeyValuePair<IEkey, object> e in ie)
                 {
-                    PropertyInfo[] p = t.GetProperties();
-
-                    for (int i = 0; i < p.Length; i++)
-                    {
-                        var aaa = p[i].Name;
-                        if (
-                            ((res = mmt.FindAttr(p[i].Name, true)) != null) &&
-                            (res.CsvIgnore)
-                           )
-                            continue;
-
-                        if (i > 0)
-                            sb.Append(__escapeChars[0]);
-                        sb.Append(p[i].Name);
-                    }
-                    sb.Append(__escapeChars[2]);
-                }
-            }
-
-            using (StreamWriter sw = new StreamWriter(__fname, false, Encoding.UTF8))
-            {
-                if (sb.Length > 0)
-                {
-                    sw.Write(sb.ToString());
-                    sb.Clear();
-                }
-
-                foreach (KeyValuePair<Tkey, object> e in this)
-                {
-                    Type t = e.Value.GetType();
-                    PropertyInfo[] p = t.GetProperties();
-                    mmt = e.Value as CSVPropertyMapMethod;
-
-                    for (int i = 0; i < p.Length; i++)
-                    {
-                        if (
-                            ((res = mmt.FindAttr(p[i].Name, true)) != null) &&
-                            (res.CsvIgnore)
-                           )
-                            continue;
-
-                        var obj = p[i].GetValue(e.Value, null);
-
-                        if (i > 0)
-                            sb.Append(__escapeChars[0]);
-
-                        if (obj != null)
-                        {
-                            if (obj.GetType() == typeof(byte[]))
-                            {
-                                if (((byte[])(obj)).Length > 0)
-                                    sb.Append(__BytesToString((byte[])obj));
-                            }
-                            else
-                                sb.Append(obj);
-                        }
-                    }
-                    sb.Append(__escapeChars[2]);
+                    if (IsWriteId)
+                        sb.Append(String.Format("{0}{1}", id.ToString(), __escapeChars[0]));
+                    pCsvSaveGetEle(e.Value, sb, fname, e.Key.ToString());
+                    if (IsWriteDate)
+                        sb.Append(String.Format("{0}{1}", __escapeChars[0], DateTime.Now.ToString()));
+                    sb.Append(Environment.NewLine);
                     sw.Write(sb.ToString());
                     sb.Clear();
                 }
             }
             return true;
         }
+
+        private bool pCsvSaveIEnumerable(
+            IEnumerable<Object> ie, string fname, string elename, string id
+            )
+        {
+            if (ie.Count() == 0)
+                return false;
+
+            List<String> cvsHeader = ((IsHeader) ? pCsvSaveGetHeader(ie.ElementAt(0)) : null);
+            bool IsWriteId = !String.IsNullOrWhiteSpace(id);
+            bool IsWriteDate = (IsAddDate && IsWriteId);
+            bool IsAppend = (IsWriteId && !IsLoadChildren);
+
+            using (StreamWriter sw = new StreamWriter(pCsvGetChildFileName(fname, elename), IsAppend, EncodingFile))
+            {
+                StringBuilder sb = new StringBuilder();
+                sw.AutoFlush = true;
+
+                if ((cvsHeader != null) && (cvsHeader.Count > 0) && (sw.BaseStream.Length <= 3))
+                {
+                    if (IsWriteDate)
+                        cvsHeader.Add(typeof(DateTime).ToString());
+                    pCvsSaveWriteHeader(cvsHeader, sw, id);
+                }
+
+                foreach (var e in ie)
+                {
+                    if (IsWriteId)
+                        sb.Append(String.Format("{0}{1}", id.ToString(), __escapeChars[0]));
+                    pCsvSaveGetEle(e, sb, fname, id);
+                    if (IsWriteDate)
+                        sb.Append(String.Format("{0}{1}", __escapeChars[0], DateTime.Now.ToString()));
+                    sb.Append(Environment.NewLine);
+                    sw.Write(sb.ToString());
+                    sb.Clear();
+                }
+            }
+            return true;
+        }
+
+        private void pCvsSaveWriteHeader(List<String> cvsHeader, StreamWriter sw, string id)
+        {
+            if ((cvsHeader == null) || (cvsHeader.Count == 0))
+                return;
+
+            if (!String.IsNullOrWhiteSpace(id))
+                sw.Write("Id{0}", __escapeChars[0]);
+            sw.WriteLine(string.Join(__escapeChars[0].ToString(), cvsHeader.ToArray()));
+        }
+        #endregion
+
+        #region private utils
+
+        private string pCsvBytesToString(byte[] data)
+        {
+            if (data.Length == 0)
+                return String.Empty;
+            return BitConverter.ToString(data).Replace("-", "");
+        }
+
+        private byte[] pCsvStringToBytes(string sdata)
+        {
+            if (String.IsNullOrWhiteSpace(sdata))
+                return new byte[0];
+
+            byte[] bytes = new byte[sdata.Length / 2];
+            for (int i = 0; i < sdata.Length; i += 2)
+                bytes[i / 2] = Convert.ToByte(sdata.Substring(i, 2), 16);
+            return bytes;
+        }
+
+        private string pCsvGetChildFileName(string fname, string elename)
+        {
+            return ((String.IsNullOrWhiteSpace(elename)) ? fname :
+                String.Format("{0}.{1}.csv", fname.Substring(0, (fname.Length - 4)), elename)
+            );
+        }
+
+        private string pCsvGetTypeFileName(Type t)
+        {
+            return String.Format("{0}.csv", t.Name);
+        }
+
+        private bool pCsvIsEmptyFileName(string fname, Type t = null)
+        {
+            __fname = ((fname != null) ? fname :
+                ((__fname != null) ? __fname :
+                   ((t != null) ? pCsvGetTypeFileName(t) : null)
+                )
+            );
+            return String.IsNullOrWhiteSpace(__fname);
+        }
+
+        private bool pCvsCheckProperty(PropertyInfo p, CSVPropertyMapMethod mmt, ref CSVClassMapAttribute res)
+        {
+            return (
+                    (p == null) ||
+                    (!p.CanRead) ||
+                    (
+                      (mmt != null) &&
+                      ((res = mmt.FindAttr(p.Name, true)) != null) &&
+                      (res.CsvIgnore)
+                    )
+                   );
+        }
+        #endregion
     }
+    #endregion
 }
 
