@@ -7,7 +7,7 @@ The extension for the Dictionary type allows you to work directly with CSV files
 
 ## Сборки
 
-- [AppVeyor собранные артифакты](https://ci.appveyor.com/project/ClnViewer/dictionary-csv-extensions/build/artifacts) zip, nuget
+- [AppVeyor собранные артефакты](https://ci.appveyor.com/project/ClnViewer/dictionary-csv-extensions/build/artifacts) zip, nuget
 
 ## Возможности
 
