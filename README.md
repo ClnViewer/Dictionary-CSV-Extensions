@@ -75,7 +75,7 @@ The extension for the Dictionary type allows you to work directly with CSV files
         dic.Load(Type, "TestData.csv");
   ```
   
-  Метод __Add(..)__ __AddOrUpdate(..)__
+  Метод __Add(..)__
   
   ```c#
         // Добавление класса данных без явного указания ключа в диктонарий
@@ -87,6 +87,12 @@ The extension for the Dictionary type allows you to work directly with CSV files
            Age = 22,
            HappytDay = DateTime.Now
         });
+        
+```
+
+Метод __AddOrUpdate(..)__
+
+```c#
         // Добавление или обновление класса данных по ключу в диктонарий
         AddOrUpdate("def", new TestData() {
            Id = "def" ,
@@ -94,15 +100,29 @@ The extension for the Dictionary type allows you to work directly with CSV files
            Age = 33,
            HappytDay = DateTime.Now
         });
+```
+
+Метод __TryGetValue(..)__
+
+```c#
         // Поиск данных по ключу в диктонарий
         // перегрузка метода `.TryGetValue()` с типом класса данных
         TestData xdata;
         if (TryGetValue<TestData>("abc", out xdata))
-           ...
+```
+
+Метод __Save(..)__
+
+```c#
         // по умолчанию, без параметров, файл будет сохранен с именем класса и расширением `.csv`
         dic.Save();
         // или с указанием файла
         dic.Save("TestData.csv");
+```
+
+Метод __Flush()__
+
+```c#
         // перезагрузка данных с сохранением, в соответствии с установленными параметрами:
         // `IsHeader`, `IsStrict`, `IsLoadChildren`, `EncodingFile`
         // имя `.csv` файла данных берется из предварительно сформированного при создании
