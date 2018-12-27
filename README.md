@@ -61,11 +61,11 @@ The extension for the Dictionary type allows you to work directly with CSV files
         CsvDictionary<String> dic = new CsvDictionary<String>();
         // При использовании метода `.Load<Type>()` - Dictionary всегда очищается от предыдущих данных
         // по умолчанию, без параметров, будет попытка загрузить файл с именем класса и расширением `.csv`
- ```
+```
  
  Метод __Load(..)__
  
- ``c#
+ ```c#
         dic.Load<TestData>();
         // или с указанием файла
         dic.Load<TestData>("TestData.csv");
