@@ -47,6 +47,8 @@ The extension for the Dictionary type allows you to work directly with CSV files
             // игнорировать поле
             [CSVClassMap(nameof(IgnoreData), false, true)]
             public ulong IgnoreData { get; set; }
+            [CSVClassMap(nameof(StringArray), false, 5)]
+            public List<String> StringArray { get; set; }
         }
 ```
 
