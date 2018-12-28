@@ -34,7 +34,7 @@ The extension for the Dictionary type allows you to work directly with CSV files
 - Поддерживает вложенные типы данных с типами `Type List<>`, `IEnumerable<>`, сохраняется в отдельных файлах, имя формируется из названия файла `root file. + field name + .csv` - дополняется именем параметра.
  
   
-### Пример класса данных
+### Пример класса данных с использованием атрибутов
 
 ```c#
         public class TestData : CSVPropertyMapMethod
