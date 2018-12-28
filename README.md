@@ -133,14 +133,14 @@ The extension for the Dictionary type allows you to work directly with CSV files
         dic.Save("TestData.csv");
 ```
 
-Метод __Flush()__
+Метод __FlushAndReload()__
 
 ```c#
         // перезагрузка данных с сохранением, в соответствии с установленными параметрами:
         // `IsHeader`, `IsStrict`, `IsLoadChildren`, `EncodingFile`
         // имя `.csv` файла данных берется из предварительно сформированного при создании
         // или загрузки `root file .csv` или из названия класса данных
-        dc.Flush();
+        dc.FlushAndReload();
 ```
 
 ### Параметры
