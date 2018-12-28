@@ -40,11 +40,9 @@ using System.Text;
 ///    void   AddOrUpdate(Tkey id, Object obj);
 ///    bool   TryGetValue<T>(Tkey id, out T xobj);
 ///    uint   Load<ClassType>(string fname);
+///    uint   Load(Type ClassType, string fname);
 ///    bool   Save(string fname);
-///    
-///    Поддерживает формат поля byte[] array,
-///    имеет собственный конвертор в HEX формат.
-/// </summary>
+///    bool   FlushAndReload();
 
 namespace Extension
 {
@@ -210,7 +208,6 @@ namespace Extension
     #region Csv Dictionary main class
     public class CsvDictionary<Tkey> : Dictionary<Tkey, Object>
     {
-        private bool __ischanged = false;
         private string __fname = null;
         private char[] __escapeChars = new[] { '|', '\'', '\n', '\r' };
         private static readonly object __lock = new object();
@@ -286,8 +283,6 @@ namespace Extension
                 this[id] = obj;
             else
                 Add(id, obj);
-
-            __ischanged = true;
         }
 
         /// <summary>
@@ -347,7 +342,6 @@ namespace Extension
             if (o != null)
             {
                 Add((Tkey)o, obj);
-                __ischanged = true;
             }
         }
 
@@ -372,9 +366,7 @@ namespace Extension
                     if (pCsvIsEmptyFileName(null, t))
                         return 0;
                 }
-                uint cnt = pCsvLoad(t, __fname, null, null);
-                __ischanged = ((cnt > 0) ? false : __ischanged);
-                return cnt;
+                return pCsvLoad(t, __fname, null, null);
             }
         }
 
@@ -401,9 +393,7 @@ namespace Extension
                 if (Count == 0)
                     return false;
 
-                bool ret = pCsvSaveDictionary<Tkey>(this, __fname, null, null);
-                __ischanged = ((ret) ? false : __ischanged);
-                return ret;
+                return pCsvSaveDictionary<Tkey>(this, __fname, null, null);
             }
         }
 
@@ -411,19 +401,14 @@ namespace Extension
         /// Flush Dictionary, save and reload
         /// </summary>
         /// <returns>bool</returns>
-        public bool Flush()
+        public bool FlushAndReload()
         {
-            if (!__ischanged)
-                return false;
-
             Type t = this.ElementAt(0).Value.GetType();
             if (
                 (!Save()) ||
                 (Load(t) == 0)
                )
                 return false;
-
-            __ischanged = false;
             return true;
         }
 
@@ -506,24 +491,13 @@ namespace Extension
                             try
                             {
                                 /// Type List<>, IEnumerable<>
-                                Type t1 = p[n].PropertyType,
-                                     t2, t4;
-
-                                if (t1.IsGenericType)
+                                if (p[n].PropertyType.IsGenericType)
                                 {
-                                    t2 = p[n].PropertyType.GetGenericTypeDefinition();
+                                    bool IsIenumerable = false;
+                                    Object ie = pCvsGetIEnumerableEle(p[n], ref IsIenumerable);
 
-                                    if ((t2 == typeof(List<>)) || (t2 == typeof(IEnumerable<>)))
+                                    if (IsIenumerable)
                                     {
-                                        Type[] t3 = t1.GetGenericArguments();
-                                        if ((t3 == null) || (t3[0] == null))
-                                            continue;
-
-                                        t4 = t2.MakeGenericType(t3[0]);
-                                        if (t4 == null)
-                                            continue;
-
-                                        Object ie = Activator.CreateInstance(t4);
                                         if (ie == null)
                                             continue;
 
@@ -532,7 +506,7 @@ namespace Extension
                                         if ((res != null) && (res.CsvKey))
                                             Id = p[n].GetValue(obj, null);
 
-                                        continue; // TODO
+                                        continue; // TODO: load data
                                     }
                                 }
                             }
@@ -651,9 +625,24 @@ namespace Extension
                 {
                     if (obj is IEnumerable<Object>)
                     {
-                        IEnumerable<Object> ie = (obj as IEnumerable<Object>);
-                        if (ie != null)
-                            pCsvSaveIEnumerable(ie, fname, p[i].Name, id);
+                        try
+                        {
+                            IEnumerable<Object> ie = (obj as IEnumerable<Object>);
+                            if (ie != null)
+                            {
+                                pCsvSaveIEnumerable(ie, fname, p[i].Name, id);
+
+                                if (!IsLoadChildren)
+                                {
+                                    bool IsIenumerable = false;
+                                    Object x = pCvsGetIEnumerableEle(p[i], ref IsIenumerable);
+
+                                    if ((IsIenumerable) && (x != null))
+                                        p[i].SetValue(e, x, null);
+                                }
+                            }
+                        }
+                        catch (Exception) { }
                     }
                     else if (obj.GetType() == typeof(byte[]))
                     {
@@ -809,6 +798,37 @@ namespace Extension
                       (res.CsvIgnore)
                     )
                    );
+        }
+
+        private Object pCvsGetIEnumerableEle(PropertyInfo p, ref bool IsIenumerable)
+        {
+            Type[] t0;
+            Type t1 = ((p == null) ? null : p.PropertyType),
+                 t2, t3;
+            Object ie = null;
+            IsIenumerable = false;
+
+            if ((t1 != null) && (t1.IsGenericType))
+            {
+                t2 = p.PropertyType.GetGenericTypeDefinition();
+
+                if ((t2 != null) && ((t2 == typeof(List<>)) || (t2 == typeof(IEnumerable<>))))
+                {
+                    IsIenumerable = true;
+
+                    if (
+                        ((t0 = t1.GetGenericArguments()) == null) ||
+                        (t0[0] == null)
+                       )
+                        return ie;
+
+                    if ((t3 = t2.MakeGenericType(t0[0])) == null)
+                        return ie;
+
+                    return Activator.CreateInstance(t3);
+                }
+            }
+            return ie;
         }
         #endregion
     }
