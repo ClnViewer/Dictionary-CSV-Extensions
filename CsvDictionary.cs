@@ -510,9 +510,8 @@ namespace Extension
                                     }
                                 }
                             }
-                            catch (Exception ex)
+                            catch (Exception)
                             {
-                                var x = ex;
                                 continue;
                             }
 
