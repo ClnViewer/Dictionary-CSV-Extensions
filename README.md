@@ -85,9 +85,9 @@ The extension for the Dictionary type allows you to work directly with CSV files
         // или с указанием файла
         dic.Load<TestData>("TestData.csv");
         // или с прямым указанием типа
-        dic.Load(Type);
+        dic.Load(typeof(TestData));
         // или с указанием типа и именем файла
-        dic.Load(Type, "TestData.csv");
+        dic.Load(typeof(TestData), "TestData.csv");
   ```
   
   Метод __Add(..)__
