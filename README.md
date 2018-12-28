@@ -155,8 +155,7 @@ The extension for the Dictionary type allows you to work directly with CSV files
         bool IsAddDate // добавлять дату внесенных изменений в IEnumerable файлы базы,
                        // Logging mode - можно использовать вместо лога
         bool IsLoadChildren // загружать дочерние IEnumerable файлы базы
-        uint AutoFlush // переодически сохранять и очищать IEnumerable элементы после сохранения,
-                       // параметр задается в секундах
+        bool AutoSave  // автоматически сохранять данные при их добавлении/изменении/удалении
         uint LineSkip  // пропустить указанное количество строк при загрузке из csv файла
         char Separator // задать разделитель данных в csv файле
         Encoding EncodingFile // кодировка csv файлов, по умолчанию UTF8
