@@ -37,9 +37,8 @@ using System.Threading.Tasks;
 ///    CsvDictionary<String> = new CsvDictionary<String>();
 /// 
 ///    void   Add(object obj);
+///    void   AddOrUpdate(Object obj);
 ///    void   AddOrUpdate(Tkey id, Object obj);
-///    void   AddOrReplace(Object obj);
-///    void   AddOrReplace(Tkey id, Object obj);
 ///    bool   Replace(Object obj);
 ///    bool   Replace(Tkey id, Object obj);
 ///    bool   TryGetValue<T>(Tkey id, out T xobj);
@@ -383,6 +382,16 @@ namespace Extension
         }
 
         /// <summary>
+        /// Добавление или обновление класса данных с автоматическим выбором ключа
+        /// </summary>
+        /// <param name="obj">класс данных</param>
+        public void AddOrUpdate(Object obj)
+        {
+            if ((Count == 0) || (!Replace(obj)))
+                Add(obj);
+        }
+
+        /// <summary>
         /// Добавление или обновление класса данных по ключу в диктонарий
         /// </summary>
         /// <param name="id">ключ</param>
@@ -398,27 +407,6 @@ namespace Extension
                     pCsvSaveTask();
             }
             else
-                Add(id, obj);
-        }
-
-        /// <summary>
-        /// Явная замена/добавление обьекта с автоматическим выбором ключа
-        /// </summary>
-        /// <param name="obj">класс данных</param>
-        public void AddOrReplace(Object obj)
-        {
-            if ((Count == 0) || (!Replace(obj)))
-                Add(obj);
-        }
-
-        /// <summary>
-        /// Явная замена/добавление обьекта с указанием ключа
-        /// </summary>
-        /// <param name="id">ключ</param>
-        /// <param name="obj">класс данных</param>
-        public void AddOrReplace(Tkey id, Object obj)
-        {
-            if ((Count == 0) || (!Replace(id, obj)))
                 Add(id, obj);
         }
 

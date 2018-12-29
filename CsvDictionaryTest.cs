@@ -130,7 +130,7 @@ namespace CsvDictionaryTest
                 }
             }
 
-            csvd.AddOrReplace(td1);
+            csvd.AddOrUpdate(td1);
 
             if (!csvd.IsAutoSave)
             {
@@ -161,7 +161,7 @@ namespace CsvDictionaryTest
             td1.StringArray.Add("end1");
             td1.StringArray.Add("end2");
 
-            csvd.AddOrReplace(td1);
+            csvd.AddOrUpdate(td1);
 
             if (csvd.IsAutoSave)
             {
