@@ -107,23 +107,16 @@ The extension for the Dictionary type allows you to work directly with CSV files
 Метод __AddOrUpdate(..)__
 
 ```c#
-        // Добавление или обновление класса данных по ключу в диктонарий
+        TestData xdata = ...;
+        /// Добавление или обновление класса данных с автоматическим выбором ключа
+        AddOrUpdate(xdata);
+        /// Добавление или обновление класса данных по ключу в диктонарий
         AddOrUpdate("def", new TestData() {
            Id = "def" ,
            Name = "Ivona",
            Age = 33,
            HappytDay = DateTime.Now
         });
-```
-
-Метод __AddOrReplace(..)__
-
-```c#
-        TestData xdata = ...;
-        /// Явная замена/добавление обьекта с автоматическим выбором ключа
-        AddOrReplace(xdata);
-        /// Явная замена/добавление обьекта с указанием ключа
-        AddOrReplace("def", xdata);
 ```
 
 Метод __TryGetValue(..)__
