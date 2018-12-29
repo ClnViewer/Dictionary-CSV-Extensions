@@ -24,12 +24,12 @@
  */
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Threading.Tasks;
 
 /// <summary>
 /// Public methods:
@@ -38,6 +38,10 @@ using System.Text;
 /// 
 ///    void   Add(object obj);
 ///    void   AddOrUpdate(Tkey id, Object obj);
+///    void   AddOrReplace(Object obj);
+///    void   AddOrReplace(Tkey id, Object obj);
+///    bool   Replace(Object obj);
+///    bool   Replace(Tkey id, Object obj);
 ///    bool   TryGetValue<T>(Tkey id, out T xobj);
 ///    uint   Load<ClassType>(string fname);
 ///    uint   Load(Type ClassType, string fname);
@@ -208,6 +212,7 @@ namespace Extension
     #region Csv Dictionary main class
     public class CsvDictionary<Tkey> : Dictionary<Tkey, Object>
     {
+        private Task __t = null;
         private string __fname = null;
         private char[] __escapeChars = new[] { '|', '\'', '\n', '\r' };
         private static readonly object __lock = new object();
@@ -236,9 +241,9 @@ namespace Extension
         /// </summary>
         public bool IsLoadChildren { get; set; }
         /// <summary>
-        /// переодически сохранять и очищать IEnumerable элементы после сохранения
+        /// автоматически сохранять даные при добавлении/измении/удалении в файл
         /// </summary>
-        public bool IsAutoFlush { get; set; }
+        public bool IsAutoSave { get; set; }
         /// <summary>
         /// пропустить указанное количество строк при загрузке из csv файла
         /// </summary>
@@ -259,16 +264,122 @@ namespace Extension
             }
         }
         /// <summary>
+        /// текущее имя файла
+        /// </summary>
+        public string FileName
+        {
+            get
+            {
+                return __fname;
+            }
+            set
+            {
+                if (value != __fname)
+                    __fname = value;
+            }
+        }
+        /// <summary>
         /// кодировка csv файлов, по умолчанию UTF8
         /// </summary>
         public Encoding EncodingFile { get; set; }
 
         public CsvDictionary() : base()
         {
-            IsAddDate = IsHeader =  IsStrict = IsTrim = true;
-            IsAutoFlush = IsLoadChildren = false;
+            IsAddDate = IsHeader = IsStrict = IsTrim = true;
+            IsAutoSave = IsLoadChildren = false;
             LineSkip = 0;
             EncodingFile = Encoding.UTF8;
+        }
+        ~CsvDictionary()
+        {
+            if (__t != null)
+                __t.Wait();
+        }
+
+        #region overwrite base methods
+
+        #region global Auto Save prototype
+
+        private void pCsvSaveTask()
+        {
+            if (__t != null)
+                return;
+
+            try
+            {
+                __t = Task.Factory.StartNew(() =>
+                {
+                    Save();
+                }).ContinueWith((x) =>
+                {
+                    if (x != null)
+                        x.Dispose();
+                    __t = null;
+                });
+            }
+            catch (Exception) { }
+        }
+
+        private void pCsvOverMethods(Action act)
+        {
+            if (IsAutoSave)
+            {
+                lock (__lock)
+                {
+                    act();
+                }
+                pCsvSaveTask();
+            }
+            else
+                act();
+        }
+        #endregion
+
+        public new void Add(Tkey id, object obj)
+        {
+            Action action = () => base.Add(id, obj);
+            pCsvOverMethods(action);
+        }
+
+        public new bool Remove(Tkey key)
+        {
+            Action action = () => base.Remove(key);
+            pCsvOverMethods(action);
+            return true;
+        }
+
+        #endregion
+
+        /// <summary>
+        /// Замена обьекта по ключу
+        /// </summary>
+        /// <param name="id">ключ</param>
+        /// <param name="obj">класс данных</param>
+        /// <returns>bool</returns>
+        public bool Replace(Tkey id, Object obj)
+        {
+            bool ret = ContainsKey(id);
+            if (ret)
+            {
+                this[id] = obj;
+
+                if (IsAutoSave)
+                    pCsvSaveTask();
+            }
+            return ret;
+        }
+
+        /// <summary>
+        /// Замена обьекта с автоматическим выбором ключа
+        /// </summary>
+        /// <param name="obj">класс данных</param>
+        /// <returns>bool</returns>
+        public bool Replace(object obj)
+        {
+            Object o = pCvsSelectKey(obj);
+            if (o != null)
+                return Replace((Tkey)o, obj);
+            return false;
         }
 
         /// <summary>
@@ -280,9 +391,47 @@ namespace Extension
         {
             bool ret = ContainsKey(id);
             if (ret)
+            {
                 this[id] = obj;
+
+                if (IsAutoSave)
+                    pCsvSaveTask();
+            }
             else
                 Add(id, obj);
+        }
+
+        /// <summary>
+        /// Явная замена/добавление обьекта с автоматическим выбором ключа
+        /// </summary>
+        /// <param name="obj">класс данных</param>
+        public void AddOrReplace(Object obj)
+        {
+            if ((Count == 0) || (!Replace(obj)))
+                Add(obj);
+        }
+
+        /// <summary>
+        /// Явная замена/добавление обьекта с указанием ключа
+        /// </summary>
+        /// <param name="id">ключ</param>
+        /// <param name="obj">класс данных</param>
+        public void AddOrReplace(Tkey id, Object obj)
+        {
+            if ((Count == 0) || (!Replace(id, obj)))
+                Add(id, obj);
+        }
+
+        /// <summary>
+        /// Добавление данных в диктонарий
+        /// автоматический выбор ключа на основании атрибутов
+        /// </summary>
+        /// <param name="obj">тип класса данных</param>
+        public void Add(object obj)
+        {
+            Object o = pCvsSelectKey(obj);
+            if (o != null)
+                Add((Tkey)o, obj);
         }
 
         /// <summary>
@@ -306,42 +455,6 @@ namespace Extension
             finally
             {
                 xobj = (T)obj;
-            }
-        }
-
-        /// <summary>
-        /// Добавление данных в диктонарий
-        /// автоматический выбор ключа на основании атрибутов
-        /// </summary>
-        /// <param name="obj">тип класса данных</param>
-        public void Add(object obj)
-        {
-            if (obj == null)
-                return;
-
-            int index = -1;
-            PropertyInfo[] p = obj.GetType().GetProperties();
-            CSVClassMapAttribute res = null;
-
-            for (int i = 0; i < p.Length; i++)
-            {
-                if (
-                    (pCvsCheckProperty(p[i], (obj as CSVPropertyMapMethod), ref res)) ||
-                    (res == null) ||
-                    (!res.CsvKey)
-                   )
-                    continue;
-
-                index = ((res.CsvIndex == -1) ? i : res.CsvIndex);
-                break;
-            }
-
-            index = ((index == -1) ? 0 : index);
-            Object o = p[index].GetValue(obj, null);
-
-            if (o != null)
-            {
-                Add((Tkey)o, obj);
             }
         }
 
@@ -629,15 +742,22 @@ namespace Extension
                             IEnumerable<Object> ie = (obj as IEnumerable<Object>);
                             if (ie != null)
                             {
-                                pCsvSaveIEnumerable(ie, fname, p[i].Name, id);
+                                int cnt;
+                                try { cnt = (obj as dynamic).Count; }
+                                catch (Exception) { cnt = 1; }
 
-                                if (!IsLoadChildren)
+                                if (cnt > 0)
                                 {
-                                    bool IsIenumerable = false;
-                                    Object x = pCvsGetIEnumerableEle(p[i], ref IsIenumerable);
+                                    pCsvSaveIEnumerable(ie, fname, p[i].Name, id);
 
-                                    if ((IsIenumerable) && (x != null))
-                                        p[i].SetValue(e, x, null);
+                                    if (!IsLoadChildren)
+                                    {
+                                        bool IsIenumerable = false;
+                                        Object x = pCvsGetIEnumerableEle(p[i], ref IsIenumerable);
+
+                                        if ((IsIenumerable) && (x != null))
+                                            p[i].SetValue(e, x, null);
+                                    }
                                 }
                             }
                         }
@@ -807,27 +927,72 @@ namespace Extension
             Object ie = null;
             IsIenumerable = false;
 
-            if ((t1 != null) && (t1.IsGenericType))
+            if (
+                (t1 != null) &&
+                (t1.IsGenericType)
+               )
             {
-                t2 = p.PropertyType.GetGenericTypeDefinition();
+                t2 = t1.GetGenericTypeDefinition();
 
-                if ((t2 != null) && ((t2 == typeof(List<>)) || (t2 == typeof(IEnumerable<>))))
-                {
+                if ((t2 != null) && (t2 == typeof(IEnumerable<>)))
                     IsIenumerable = true;
+                else
+                    foreach (Type it in t1.GetInterfaces())
+                        if (it.GetGenericTypeDefinition() == typeof(IEnumerable<>))
+                        {
+                            IsIenumerable = true;
+                            break;
+                        }
 
-                    if (
-                        ((t0 = t1.GetGenericArguments()) == null) ||
-                        (t0[0] == null)
-                       )
-                        return ie;
+                if (!IsIenumerable)
+                    return ie;
 
-                    if ((t3 = t2.MakeGenericType(t0[0])) == null)
-                        return ie;
+                if (
+                    ((t0 = t1.GetGenericArguments()) == null) ||
+                    (t0[0] == null) &&
+                    (t2 != null)
+                   )
+                    return ie;
 
-                    return Activator.CreateInstance(t3);
-                }
+                if ((t2 != null) && (t2 == typeof(IEnumerable<>)))
+                    t3 = typeof(List<>).MakeGenericType(t0[0]);
+                else if (t2 != null)
+                    t3 = t2.MakeGenericType(t0[0]);
+                else
+                    t3 = t1;
+
+                if (t3 == null)
+                    return ie;
+
+                return Activator.CreateInstance(t3);
             }
             return ie;
+        }
+
+        private Object pCvsSelectKey(object obj)
+        {
+            if (obj == null)
+                return null;
+
+            int index = -1;
+            PropertyInfo[] p = obj.GetType().GetProperties();
+            CSVClassMapAttribute res = null;
+
+            for (int i = 0; i < p.Length; i++)
+            {
+                if (
+                    (pCvsCheckProperty(p[i], (obj as CSVPropertyMapMethod), ref res)) ||
+                    (res == null) ||
+                    (!res.CsvKey)
+                   )
+                    continue;
+
+                index = ((res.CsvIndex == -1) ? i : res.CsvIndex);
+                break;
+            }
+
+            index = ((index == -1) ? 0 : index);
+            return p[index].GetValue(obj, null);
         }
         #endregion
     }

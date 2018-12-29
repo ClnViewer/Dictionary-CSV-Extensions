@@ -27,6 +27,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Threading;
+
 /// CsvDictionary class
 using Extension;
 
@@ -74,8 +76,7 @@ namespace CsvDictionaryTest
     {
         static void Main(string[] args)
         {
-
-            TestData td = new TestData()
+            TestData td0 = new TestData()
             {
                 Id = "1234567890",
                 Name = "DESKTOP-123",
@@ -85,31 +86,102 @@ namespace CsvDictionaryTest
                 IgnoreData = 12345,
                 StringArray = new List<string>()
             };
+            TestData td1 = new TestData()
+            {
+                Id = "0987654321",
+                Name = "DESKTOP-456",
+                Age = 23,
+                HappyDay = DateTime.Now,
+                BytesArray = new byte[] { 0x2A, 0x2B, 0x2E, 0x2F },
+                IgnoreData = 12345,
+                StringArray = new List<string>()
+            };
 
-            td.StringArray.Add("abc");
-            td.StringArray.Add("def");
-            td.StringArray.Add("wxv");
+            td0.StringArray.Add("abc");
 
             CsvDictionary<String> csvd = new CsvDictionary<String>();
-            csvd.IsAutoFlush = true;
-            csvd.Add(td);
-            csvd.Save();
+            csvd.IsAutoSave = true;
+            csvd.Add(td0);
 
-            /// csvd.Flush();
+            if (csvd.IsAutoSave)
+            {
+                Console.WriteLine("Sleep..");
+                int i = 0;
+                while (i < 100000)
+                {
+                    i++;
+                    Thread.SpinWait(i);
+                }
+            }
 
-            csvd.Load<TestData>();
+            td0.StringArray.Add("def");
+            td0.StringArray.Add("wxv");
+
+            csvd.Replace(td0);
+
+            if (csvd.IsAutoSave)
+            {
+                Console.WriteLine("Sleep..");
+                int i = 0;
+                while (i < 100000)
+                {
+                    i++;
+                    Thread.SpinWait(i);
+                }
+            }
+
+            csvd.AddOrReplace(td1);
+
+            if (!csvd.IsAutoSave)
+            {
+                //csvd.Save();
+                //csvd.Load<TestData>();
+                /// or
+                csvd.FlushAndReload();
+            }
+
             TestData tdItem = null;
             bool ret = csvd.TryGetValue<TestData>("1234567890", out tdItem);
 
             tdItem.StringArray.Add("fgh");
+            tdItem.StringArray.Add("zzz");
+            tdItem.StringArray.Add("qqq");
+
+            if (csvd.IsAutoSave)
+            {
+                Console.WriteLine("Sleep..");
+                int i = 0;
+                while (i < 100000)
+                {
+                    i++;
+                    Thread.SpinWait(i);
+                }
+            }
+
+            td1.StringArray.Add("end1");
+            td1.StringArray.Add("end2");
+
+            csvd.AddOrReplace(td1);
+
+            if (csvd.IsAutoSave)
+            {
+                Console.WriteLine("Sleep..");
+                int i = 0;
+                while (i < 100000)
+                {
+                    i++;
+                    Thread.SpinWait(i);
+                }
+            }
 
             Console.WriteLine(
-                        "return {0}: {1}",
+                        "End -> return {0}: {1}",
                         ret,
                         ((tdItem == null) ? "item not found" : tdItem.ToString())
             );
 
-            Console.ReadLine();
+            if (!csvd.IsAutoSave)
+                Console.ReadLine();
         }
     }
 }
