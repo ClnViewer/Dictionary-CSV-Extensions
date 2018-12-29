@@ -138,6 +138,7 @@ The extension for the Dictionary type allows you to work directly with CSV files
 Метод __Replace(..)__
 
 ```c#
+        TestData xdata = ...;
         /// Замена обьекта с автоматическим выбором ключа
         if (Replace(xdata)) { .. }
         /// Замена обьекта по ключу
