@@ -122,7 +122,16 @@ The extension for the Dictionary type allows you to work directly with CSV files
         // Поиск данных по ключу в диктонарий
         // перегрузка метода `.TryGetValue()` с типом класса данных
         TestData xdata;
-        if (TryGetValue<TestData>("abc", out xdata))
+        if (TryGetValue<TestData>("abc", out xdata)) { .. }
+```
+
+Метод __Replace(..)__
+
+```c#
+        /// Замена обьекта с автоматическим выбором ключа
+        if (Replace(xdata)) { .. }
+        /// Замена обьекта по ключу
+        if (Replace("abc", xdata)) { .. }
 ```
 
 Метод __Save(..)__
