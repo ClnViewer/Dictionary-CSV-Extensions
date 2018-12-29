@@ -116,6 +116,16 @@ The extension for the Dictionary type allows you to work directly with CSV files
         });
 ```
 
+Метод __AddOrReplace(..)__
+
+```c#
+        TestData xdata = ...;
+        /// Явная замена/добавление обьекта с автоматическим выбором ключа
+        AddOrReplace(xdata);
+        /// Явная замена/добавление обьекта с указанием ключа
+        AddOrReplace("def", xdata);
+```
+
 Метод __TryGetValue(..)__
 
 ```c#
