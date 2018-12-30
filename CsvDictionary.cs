@@ -926,11 +926,21 @@ namespace Extension
                     IsIenumerable = true;
                 else
                     foreach (Type it in t1.GetInterfaces())
-                        if (it.GetGenericTypeDefinition() == typeof(IEnumerable<>))
+                    {
+                        try
                         {
-                            IsIenumerable = true;
-                            break;
+                            if (
+                                (it != null) &&
+                                (it.GetGenericTypeDefinition() != null) &&
+                                (it.GetGenericTypeDefinition() == typeof(IEnumerable<>))
+                               )
+                            {
+                                IsIenumerable = true;
+                                break;
+                            }
                         }
+                        catch (Exception) { }
+                    }
 
                 if (!IsIenumerable)
                     return ie;
