@@ -927,19 +927,16 @@ namespace Extension
                 else
                     foreach (Type it in t1.GetInterfaces())
                     {
-                        try
+                        if (
+                            (it != null) &&
+                            (it.IsGenericType) &&
+                            (it.GetGenericTypeDefinition() != null) &&
+                            (it.GetGenericTypeDefinition() == typeof(IEnumerable<>))
+                           )
                         {
-                            if (
-                                (it != null) &&
-                                (it.GetGenericTypeDefinition() != null) &&
-                                (it.GetGenericTypeDefinition() == typeof(IEnumerable<>))
-                               )
-                            {
-                                IsIenumerable = true;
-                                break;
-                            }
+                            IsIenumerable = true;
+                            break;
                         }
-                        catch (Exception) { }
                     }
 
                 if (!IsIenumerable)
